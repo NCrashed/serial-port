@@ -312,11 +312,9 @@ class SerialPort
 
         version(Posix)
         {
-            speed_t baud;
-            
             termios options;
             tcgetattr(handle, &options);
-            cfgetospeed(&options, &baud);
+            speed_t baud = cfgetospeed(&options);
             return getBaudSpeed(cast(uint)baud);
         }
         version(Windows)
@@ -335,18 +333,22 @@ class SerialPort
     BaudRate[] getBaudRates()
     {
         if (closed) throw new DeviceClosedException();
-
         BaudRate currSpeed = speed;
         BaudRate[] ret; 
         foreach(baud; __traits(allMembers, BaudRate))
         {
-            if(baud != "BR_UNKNOWN")
+            auto baudRate = mixin("BaudRate."~baud);
+            if(baudRate != BaudRate.BR_UNKNOWN)
             {
-                auto baudRate = mixin("BaudRate."~baud);
-                scope(success) ret ~= baudRate;
-                scope(failure) {}
+                try
+                {
+                    speed = baudRate;
+                    ret ~= baudRate;
+                } 
+                catch(SpeedUnsupportedException e)
+                {
 
-                speed = baudRate;
+                }
             }
         }
 
@@ -398,36 +400,30 @@ class SerialPort
 
                 version(linux)
                 {
-                    return (entry.name.find("ttyUSB") == 0
-                           || entry.name.find("ttyS") == 0)
-                           && entry.name[$-1].isInRange(0, 9);
+                    return (entry.name.countUntil("ttyUSB") == 5
+                           || entry.name.countUntil("ttyS") == 5);
                 }
                 version(darwin)
                 {
-                    return entry.name.find("cu") == 0;
+                    return entry.name.countUntil("cu") == 5;
                 }
                 version(FreeBSD)
                 {
-                    return (entry.name.find("cuaa") == 0
-                           || entry.name.find("cuad") == 0)
-                           && entry.name[$-1].isInRange(0, 9);
+                    return (entry.name.countUntil("cuaa") == 5
+                           || entry.name.countUntil("cuad") == 5);
                 }
                 version(openbsd)
                 {
-                    return entry.name.find("tty") == 0
-                           && entry.name[$-1].isInRange(0, 9);
+                    return entry.name.countUntil("tty") == 5;
                 }
                 version(solaris)
                 {
-                    return entry.name.find("tty") == 0
-                           && entry.name[$-1].isInRange('a', 'z');
-                } else
-                {
-                    return false;
+                    return entry.name.countUntil("tty") == 5
+                           && isInRange(entry.name[$-1], 'a', 'z');
                 }
             }
 
-            auto portFiles = filter!(&comFilter)(dirEntries("/dev",SpanMode.width));
+            auto portFiles = filter!(comFilter)(dirEntries("/dev",SpanMode.shallow));
             foreach(entry; portFiles)
             {
                 ports ~= entry.name;
@@ -454,7 +450,7 @@ class SerialPort
         {
             if(handle != -1)
             {
-                close(handle);
+                core.sys.posix.unistd.close(handle);
                 handle = -1;
             }
         }
@@ -495,7 +491,7 @@ class SerialPort
             size_t totalWritten;
             while(totalWritten < arr.length)
             {
-                ssize_t result = write(handle, arr[totalWritten..$].ptr, arr.length - totalWritten);
+                ssize_t result = core.sys.posix.unistd.write(handle, arr[totalWritten..$].ptr, arr.length - totalWritten);
                 if(result < 0)
                     throw new DeviceWriteException(port);
                 totalWritten += cast(size_t)result;
@@ -521,7 +517,7 @@ class SerialPort
         }
         version(Posix)
         {
-            ssize_t result = read(handle, arr.ptr, arr.length);
+            ssize_t result = core.sys.posix.unistd.read(handle, arr.ptr, arr.length);
             if(result < 0)
             {
                 throw new DeviceReadException(port);
@@ -584,7 +580,7 @@ class SerialPort
                 throw new SpeedUnsupportedException(baud);
             }
 
-            void create (string file)
+            void setup(string file)
             {
                 if(file.length == 0) throw new InvalidDeviceException(file);
                 if(file[0] != '/') file = "/dev/" ~ file;
@@ -599,7 +595,7 @@ class SerialPort
                 {
                     throw new InvalidDeviceException(file);
                 }
-                if(posix.fcntl(handle, F_SETFL, 0) == -1) 
+                if(fcntl(handle, F_SETFL, 0) == -1) 
                 {   // disable O_NONBLOCK
                     throw new InvalidDeviceException(file);
                 }
@@ -629,21 +625,39 @@ class SerialPort
         private static __gshared BaudRate[uint] baudRatetoUint;
         shared static this() 
         {
-            baudRatetoUint = [
-                110 : BaudRate.BR_110,
-                300 : BaudRate.BR_300,
-                600 : BaudRate.BR_600,
-                1200 : BaudRate.BR_1200,
-                2400 : BaudRate.BR_2400,
-                4800 : BaudRate.BR_4800,
-                9600 : BaudRate.BR_9600,
-                38400 : BaudRate.BR_38400,
-                57600 : BaudRate.BR_57600,
-                115200 : BaudRate.BR_115200,
-            ];
+            version(Windows)
+            {
+                baudRatetoUint = [
+                    110 : BaudRate.BR_110,
+                    300 : BaudRate.BR_300,
+                    600 : BaudRate.BR_600,
+                    1200 : BaudRate.BR_1200,
+                    2400 : BaudRate.BR_2400,
+                    4800 : BaudRate.BR_4800,
+                    9600 : BaudRate.BR_9600,
+                    38400 : BaudRate.BR_38400,
+                    57600 : BaudRate.BR_57600,
+                    115200 : BaudRate.BR_115200,
+                ];
+            }
+            version(linux)
+            {
+                baudRatetoUint = [
+                    B110 : BaudRate.BR_110,
+                    B300 : BaudRate.BR_300,
+                    B600 : BaudRate.BR_600,
+                    B1200 : BaudRate.BR_1200,
+                    B2400 : BaudRate.BR_2400,
+                    B4800 : BaudRate.BR_4800,
+                    B9600 : BaudRate.BR_9600,
+                    B38400 : BaudRate.BR_38400,
+                    B57600 : BaudRate.BR_57600,
+                    B115200 : BaudRate.BR_115200,
+                ];
+            }
         }
 
-        BaudRate getBaudSpeed(uint value)
+        static BaudRate getBaudSpeed(uint value)
         {
             if(value in baudRatetoUint) return baudRatetoUint[value];
             return BaudRate.BR_UNKNOWN;

@@ -22,5 +22,8 @@ To compile tests:
 dub build --build=unittest --config=unittest
 ./serial-port
 ```
-You should have two serial ports linked to each other (com0com on Windows, hard links in Posix). For instance, writing to 
-'COM1' and reading from 'COM2'.
+You should have two serial ports linked to each other (com0com on Windows, socat in linux). For instance, writing to 
+'COM1' and reading from 'COM2'. On posix you can use socat to create serial port pipe:
+```
+socat PTY,link=ttyS1 PTY,link=ttyS2
+```
