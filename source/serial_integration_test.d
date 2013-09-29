@@ -1,4 +1,4 @@
-module app;
+module serial_integration_test;
 
 version(unittest)
 {
