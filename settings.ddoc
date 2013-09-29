@@ -2,7 +2,7 @@ PROJECTNAME = serial-port
 REFERENCETOP = index.html
 REPOSRCTREE = http://github.com/NCrashed/serial-port/tree/master
 TITLEBARTEXT = <a href="http://github.com/NCrashed/serial-port">Github Page</a>
-RESOURCEROOT =
+RESOURCEROOT = bootDoc/
 ISSUETRACKER = http://github.com/NCrashed/serial-port/issues/$1
 DEFAULTPACKAGE = serial.device
 PACKAGESEP = .
