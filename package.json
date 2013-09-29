@@ -1,0 +1,23 @@
+{
+	"name": "serial-port",
+	"description": "Minimalistic serial port library. Exctracted from Tango library.",
+	"homepage": "https://github.com/NCrashed/serial-port",
+	"copyright": "Copyright © 2013, Gushcha Anton",
+	"authors": [
+		"NCrashed - Gushcha Anton"
+	],
+	"dependencies": {
+
+	},
+
+    "configurations": [
+        {
+            "name": "library",
+            "targetType": "library"
+        },
+        {
+            "name": "unittest",
+            "targetType": "executable"
+        }
+    ]
+}
