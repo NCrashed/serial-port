@@ -1,7 +1,7 @@
 serial-port
 ===========
 
-Crossplatform library for operating with serial ports in D programming language.
+Crossplatform library for operating with serial ports in D programming language. [Documentation](http://ncrashed.github.io/serial-port/index.html).
 
 Compilation
 ===========
