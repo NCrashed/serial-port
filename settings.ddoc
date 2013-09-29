@@ -1,0 +1,14 @@
+PROJECTNAME = serial-port
+REFERENCETOP = serial.device.html
+REPOSRCTREE = http://github.com/NCrashed/seria-port/tree/master
+TITLEBARTEXT = <a href="http://github.com/NCrashed/seria-port">Github Page</a>
+RESOURCEROOT =
+ISSUETRACKER = http://github.com/NCrashed/seria-port/issues/$1
+DEFAULTPACKAGE = serial.device
+PACKAGESEP = .
+FAVICON = $(RESOURCEROOT)assets/ico/favicon.ico
+LOGOSRC = $(RESOURCEROOT)assets/img/icon-github.png
+LOGOALT = $(PROJECTNAME)
+LOGOLINK = $(REFERENCETOP)
+COPYRIGHT = Anton Gushcha
+COPYRIGHTFOOTER = &copy; $(COPYRIGHT) 2012-$(YEAR)
