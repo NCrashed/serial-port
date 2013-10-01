@@ -57,8 +57,12 @@ version(Posix)
     import std.algorithm;
     import std.file;
 
-    enum B57600 = 57600;
-    enum B115200 = 115200;
+    enum B57600 = 57_600;
+    enum B115200 = 115_200;
+    
+    alias core.sys.posix.unistd.read posixRead;
+    alias core.sys.posix.unistd.write posixWrite;
+    alias core.sys.posix.unistd.close posixClose;
 }
 version(Windows)
 {
@@ -78,11 +82,11 @@ enum BaudRate : uint
     BR_2400   = 2400,
     BR_4800   = 4800,
     BR_9600   = 9600,
-    BR_19200  = 19200,
-    BR_38400  = 38400,
-    BR_57600  = 57600,
-    BR_115200 = 115200,
-    BR_UNKNOWN // refers to unknown baud rate
+    BR_19200  = 19_200,
+    BR_38400  = 38_400,
+    BR_57600  = 57_600,
+    BR_115200 = 115_200,
+    BR_UNKNOWN  // refers to unknown baud rate
 }
 
 /**
@@ -450,7 +454,7 @@ class SerialPort
         {
             if(handle != -1)
             {
-                core.sys.posix.unistd.close(handle);
+                posixClose(handle);
                 handle = -1;
             }
         }
@@ -491,7 +495,7 @@ class SerialPort
             size_t totalWritten;
             while(totalWritten < arr.length)
             {
-                ssize_t result = core.sys.posix.unistd.write(handle, arr[totalWritten..$].ptr, arr.length - totalWritten);
+                ssize_t result = posixWrite(handle, arr[totalWritten..$].ptr, arr.length - totalWritten);
                 if(result < 0)
                     throw new DeviceWriteException(port);
                 totalWritten += cast(size_t)result;
@@ -517,7 +521,7 @@ class SerialPort
         }
         version(Posix)
         {
-            ssize_t result = core.sys.posix.unistd.read(handle, arr.ptr, arr.length);
+            ssize_t result = posixRead(handle, arr.ptr, arr.length);
             if(result < 0)
             {
                 throw new DeviceReadException(port);
@@ -595,8 +599,8 @@ class SerialPort
                 {
                     throw new InvalidDeviceException(file);
                 }
-                if(fcntl(handle, F_SETFL, 0) == -1) 
-                {   // disable O_NONBLOCK
+                if(fcntl(handle, F_SETFL, 0) == -1)  // disable O_NONBLOCK
+                {   
                     throw new InvalidDeviceException(file);
                 }
 
@@ -613,8 +617,8 @@ class SerialPort
 
             void makeRaw (termios *options)
             {
-                options.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP
-                        | INLCR | IGNCR | ICRNL | IXON);
+                options.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | 
+                                     INLCR | IGNCR | ICRNL | IXON);
                 options.c_oflag &= ~OPOST;
                 options.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
                 options.c_cflag &= ~(CSIZE | PARENB);
@@ -635,9 +639,9 @@ class SerialPort
                     2400 : BaudRate.BR_2400,
                     4800 : BaudRate.BR_4800,
                     9600 : BaudRate.BR_9600,
-                    38400 : BaudRate.BR_38400,
-                    57600 : BaudRate.BR_57600,
-                    115200 : BaudRate.BR_115200,
+                    38_400 : BaudRate.BR_38400,
+                    57_600 : BaudRate.BR_57600,
+                    115_200 : BaudRate.BR_115200,
                 ];
             }
             version(linux)
@@ -673,5 +677,5 @@ class SerialPort
             int handle = -1;
         version(Windows)
             HANDLE handle = null;
-   }   
+    }   
 }
