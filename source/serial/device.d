@@ -266,9 +266,8 @@ class SerialPort
     *
     *   Params:
     *   port =  Port name. On Posix, it should be reffer to device file
-    *           like /dev/ttyS<N>. If port string doesn't begin with '/',
-    *           "/dev/" is automatically appended to the begining of input.
-    *           On Windows, port name should be like COM<N> or any other.
+    *           like /dev/ttyS<N>. On Windows, port name should be like 
+    *           COM<N> or any other.
     *
     *   Throws: InvalidParametersException, InvalidDeviceException
     *   
@@ -278,6 +277,18 @@ class SerialPort
         setup(port);
     }
 
+    /**
+    *   Creates new serial port instance.
+    *
+    *   Params:
+    *   port =  Port name. On Posix, it should be reffer to device file
+    *           like /dev/ttyS<N>. On Windows, port name should be like 
+    *           COM<N> or any other.
+    *   readTimeout  = Setups constant timeout on read operations.
+    *   writeTimeout = Setups constant timeout on write operations. In posix is ignored.
+    *
+    *   Throws: InvalidParametersException, InvalidDeviceException
+    */
     this(string port, Duration readTimeout, Duration writeTimeout)
     {
     	readTimeoutConst = readTimeout;
@@ -285,6 +296,22 @@ class SerialPort
     	this(port);
     }
     
+    /**
+    *   Creates new serial port instance.
+    *
+    *   Params:
+    *   port =  Port name. On Posix, it should be reffer to device file
+    *           like /dev/ttyS<N>. On Windows, port name should be like 
+    *           COM<N> or any other.
+    *   readTimeoutConst  = Setups constant timeout on read operations.
+    *   writeTimeoutConst = Setups constant timeout on write operations. In posix is ignored.
+    *   readTimeoutMult   = Setups timeout on read operations depending on buffer size.
+    *   writeTimeoutMult  = Setups timeout on write operations depending on buffer size. 
+    *                       In posix is ignored.
+    *   
+    *   Note: Total timeout is calculated as timeoutMult*buff.length + timeoutConst.
+    *   Throws: InvalidParametersException, InvalidDeviceException
+    */
     this(string port, Duration readTimeoutMult, Duration readTimeoutConst,
     		 		  Duration writeTimeoutMult, Duration writeTimeoutConst)
     {

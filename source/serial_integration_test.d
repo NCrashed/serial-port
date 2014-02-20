@@ -81,5 +81,6 @@ version(unittest)
             failed = true;
         } 
         assert(failed);
+        writeln("success!");
     }
 }
