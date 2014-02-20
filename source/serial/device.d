@@ -148,13 +148,24 @@ class DeviceClosedException : Exception
 
 /**
 *	Thrown when read/write operations failed due timeout.
+*
+*   Exception carries useful info about number of read/wrote bytes until
+*   timeout occurs. It takes sense only for Windows, as posix version 
+*   won't start reading until the port is empty.
 */
 class TimeoutException : Exception
 {
-	@safe pure nothrow this(string port, string file = __FILE__, size_t line = __LINE__)
+    /**
+    *   Transfers problematic $(B port) name and $(B size) of read/wrote bytes until
+    *   timeout.
+    */
+	@safe pure nothrow this(string port, size_t size, string file = __FILE__, size_t line = __LINE__)
 	{
+        this.size = size;
 		super("Timeout is expires for serial port '"~port~"'", file, line);
 	}
+
+    size_t size;
 }
 
 /**
@@ -290,7 +301,7 @@ class SerialPort
     {
     	this.readTimeoutMult = readTimeoutMult;
     	this.readTimeoutConst = readTimeoutConst;
-    	this.writeTimeoutMutl = writeTimeoutMult;
+    	this.writeTimeoutMult = writeTimeoutMult;
     	this.writeTimeoutConst = writeTimeoutConst;
     	this(port);
     }
@@ -514,6 +525,8 @@ class SerialPort
 
     /**
     *   Writes down array of bytes to serial port.
+    *
+    *   Throws: TimeoutException (Windows only)
     */
     void write(const(void[]) arr)
     {
@@ -521,15 +534,12 @@ class SerialPort
 
         version(Windows)
         {
-            size_t totalWritten;
-            while(totalWritten < arr.length)
-            {
-                uint written;
-                if(!WriteFile(handle, arr[totalWritten..$].ptr, 
-                    cast(uint)(arr.length-totalWritten), &written, null))
-                        throw new DeviceWriteException(port);
-                totalWritten += written;
-            }
+            uint written;
+            if(!WriteFile(handle, arr.ptr, 
+                cast(uint)arr.length, &written, null))
+                    throw new DeviceWriteException(port);
+            if(arr.length != written)
+                throw new TimeoutException(port, written);
         }
         version(Posix)
         {
@@ -547,7 +557,7 @@ class SerialPort
     /**
     *   Fills up provided array with bytes from com port.
     *   Returns: actual number of readed bytes.
-    *   Throws: DeviceReadException
+    *   Throws: DeviceReadException, TimeoutException
     */
     size_t read(void[] arr)
     {
@@ -558,6 +568,8 @@ class SerialPort
             uint readed;
             if(!ReadFile(handle, arr.ptr, cast(uint)arr.length, &readed, null))
                 throw new DeviceReadException(port);
+            if(arr.length != readed) 
+                throw new TimeoutException(port, cast(size_t)readed);
             return cast(size_t)readed;
         }
         version(Posix)
@@ -570,16 +582,13 @@ class SerialPort
             timeout.tv_sec = cast(int)(arr.length*readTimeoutMult.get!"seconds" + readTimeoutConst.get!"seconds");
             timeout.tv_usec = cast(int)(arr.length*readTimeoutMult.fracSec.msecs + readTimeoutConst.fracSec.msecs);
             
-            import std.stdio;
-            writeln(timeout);
-            
         	auto rv = select(handle + 1, &selectSet, null, null, &timeout);
         	if(rv == -1)
         	{
         		throw new DeviceReadException(port);
         	} else if(rv == 0)
         	{
-        		throw new TimeoutException(port);
+        		throw new TimeoutException(port, 0);
         	}
         	
             ssize_t result = posixRead(handle, arr.ptr, arr.length);
@@ -614,12 +623,12 @@ class SerialPort
                 config.fParity = 1;
 
                 COMMTIMEOUTS timeouts;
-                timeouts.ReadIntervalTimeout         = INFINITE_TIMEOUT;
-		        timeouts.ReadTotalTimeoutMultiplier  = readTimeoutMult;
-		        timeouts.ReadTotalTimeoutConstant    = readTimeoutConst;
-		        timeouts.WriteTotalTimeoutMultiplier = writeTimeoutMult;
-		        timeouts.WriteTotalTimeoutConstant   = writeTimeoutConst;
-		        
+                timeouts.ReadIntervalTimeout         = 0;
+		        timeouts.ReadTotalTimeoutMultiplier  = cast(DWORD)readTimeoutMult.total!"msecs";
+		        timeouts.ReadTotalTimeoutConstant    = cast(DWORD)readTimeoutConst.total!"msecs";
+		        timeouts.WriteTotalTimeoutMultiplier = cast(DWORD)writeTimeoutMult.total!"msecs";
+		        timeouts.WriteTotalTimeoutConstant   = cast(DWORD)writeTimeoutConst.total!"msecs";
+		        import std.stdio; writeln(timeouts);
 		        if (SetCommTimeouts(handle, &timeouts) == 0) 
 		        {
 		        	throw new InvalidParametersException(port);
@@ -749,7 +758,7 @@ class SerialPort
             
         Duration readTimeoutMult;
         Duration readTimeoutConst;
-        Duration writeTimeoutMutl;
+        Duration writeTimeoutMult;
         Duration writeTimeoutConst;
     }   
 }
