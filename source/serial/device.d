@@ -47,13 +47,16 @@ DEALINGS IN THE SOFTWARE.
 module serial.device;
 
 import std.conv;
+import std.stdio;
 import std.string;
+import core.time;
 
 version(Posix)
 {
     import core.sys.posix.unistd;
     import core.sys.posix.termios;
     import core.sys.posix.fcntl;
+    import core.sys.posix.sys.select;
     import std.algorithm;
     import std.file;
 
@@ -111,10 +114,10 @@ class InvalidParametersException : Exception
 {
     string port;
 
-    this(string port)
+    @safe pure nothrow this(string port, string file = __FILE__, size_t line = __LINE__)
     {
         this.port = port;
-        super("One of serial port "~ port ~ " parameters is invalid!");
+        super("One of serial port "~ port ~ " parameters is invalid!", file, line);
     }
 }
 
@@ -125,10 +128,10 @@ class InvalidDeviceException : Exception
 {
     string port;
 
-    this(string port)
+    @safe pure nothrow this(string port, string file = __FILE__, size_t line = __LINE__)
     {
         this.port = port;
-        super(text("Failed to open serial port with name ", port, "!"));
+        super(text("Failed to open serial port with name ", port, "!"), file, line);
     }
 }
 
@@ -137,10 +140,21 @@ class InvalidDeviceException : Exception
 */
 class DeviceClosedException : Exception 
 {
-    this()
+    @safe pure nothrow this(string file = __FILE__, size_t line = __LINE__)
     {
-        super("Tried to access closed device!");
+        super("Tried to access closed device!", file, line);
     }
+}
+
+/**
+*	Thrown when read/write operations failed due timeout.
+*/
+class TimeoutException : Exception
+{
+	@safe pure nothrow this(string port, string file = __FILE__, size_t line = __LINE__)
+	{
+		super("Timeout is expires for serial port '"~port~"'", file, line);
+	}
 }
 
 /**
@@ -150,10 +164,10 @@ class DeviceReadException : Exception
 {
     string port;
 
-    this(string port)
+    @safe pure nothrow this(string port, string file = __FILE__, size_t line = __LINE__)
     {
         this.port = port;
-        super("Failed to read from serial port with name " ~ port);
+        super("Failed to read from serial port with name " ~ port, file, line);
     }
 }
 
@@ -164,10 +178,10 @@ class DeviceWriteException : Exception
 {
     string port;
 
-    this(string port)
+    @safe pure nothrow this(string port, string file = __FILE__, size_t line = __LINE__)
     {
         this.port = port;
-        super("Failed to write to serial port with name " ~ port);
+        super("Failed to write to serial port with name " ~ port, file, line);
     }
 }
 
@@ -218,10 +232,20 @@ version(Windows)
         WORD  wReserved1;
     }
 
+    struct COMMTIMEOUTS
+    {
+    	DWORD ReadIntervalTimeout;
+    	DWORD ReadTotalTimeoutMultiplier;
+    	DWORD ReadTotalTimeoutConstant;
+    	DWORD WriteTotalTimeoutMultiplier;
+    	DWORD WriteTotalTimeoutConstant;
+    }
+    
     extern(Windows) 
     {
         bool GetCommState(HANDLE hFile, DCB* lpDCB);
         bool SetCommState(HANDLE hFile, DCB* lpDCB);
+        bool SetCommTimeouts(HANDLE hFile, COMMTIMEOUTS* lpCommTimeouts);
     }
 }
 
@@ -254,6 +278,23 @@ class SerialPort
         setup(port);
     }
 
+    this(string port, Duration readTimeout, Duration writeTimeout)
+    {
+    	readTimeoutConst = readTimeout;
+    	writeTimeoutConst = writeTimeout;
+    	this(port);
+    }
+    
+    this(string port, Duration readTimeoutMult, Duration readTimeoutConst,
+    		 		  Duration writeTimeoutMult, Duration writeTimeoutConst)
+    {
+    	this.readTimeoutMult = readTimeoutMult;
+    	this.readTimeoutConst = readTimeoutConst;
+    	this.writeTimeoutMutl = writeTimeoutMult;
+    	this.writeTimeoutConst = writeTimeoutConst;
+    	this(port);
+    }
+    
     ~this()
     {
         close();
@@ -521,8 +562,28 @@ class SerialPort
         }
         version(Posix)
         {
+            fd_set selectSet;
+            FD_ZERO(&selectSet);
+            FD_SET(handle, &selectSet);
+            
+            timeval timeout;
+            timeout.tv_sec = cast(int)(arr.length*readTimeoutMult.get!"seconds" + readTimeoutConst.get!"seconds");
+            timeout.tv_usec = cast(int)(arr.length*readTimeoutMult.fracSec.msecs + readTimeoutConst.fracSec.msecs);
+            
+            import std.stdio;
+            writeln(timeout);
+            
+        	auto rv = select(handle + 1, &selectSet, null, null, &timeout);
+        	if(rv == -1)
+        	{
+        		throw new DeviceReadException(port);
+        	} else if(rv == 0)
+        	{
+        		throw new TimeoutException(port);
+        	}
+        	
             ssize_t result = posixRead(handle, arr.ptr, arr.length);
-            if(result < 0)
+            if(result < 0) 
             {
                 throw new DeviceReadException(port);
             }
@@ -552,6 +613,18 @@ class SerialPort
                 config.fBinary = 1;
                 config.fParity = 1;
 
+                COMMTIMEOUTS timeouts;
+                timeouts.ReadIntervalTimeout         = INFINITE_TIMEOUT;
+		        timeouts.ReadTotalTimeoutMultiplier  = readTimeoutMult;
+		        timeouts.ReadTotalTimeoutConstant    = readTimeoutConst;
+		        timeouts.WriteTotalTimeoutMultiplier = writeTimeoutMult;
+		        timeouts.WriteTotalTimeoutConstant   = writeTimeoutConst;
+		        
+		        if (SetCommTimeouts(handle, &timeouts) == 0) 
+		        {
+		        	throw new InvalidParametersException(port);
+		        }
+		        
                 if(!SetCommState(handle, &config))
                 {
                     throw new InvalidParametersException(port);
@@ -587,12 +660,8 @@ class SerialPort
             void setup(string file)
             {
                 if(file.length == 0) throw new InvalidDeviceException(file);
-                if(file[0] != '/') file = "/dev/" ~ file;
 
-                if(file.length > 5 && file[0..5] == "/dev/")
-                    port = file[5..$];
-                else
-                    port = file;
+            	port = file;
 
                 handle = open(file.toStringz(), O_RDWR | O_NOCTTY | O_NONBLOCK);
                 if(handle == -1) 
@@ -603,7 +672,7 @@ class SerialPort
                 {   
                     throw new InvalidDeviceException(file);
                 }
-
+                
                 termios options;
                 if(tcgetattr(handle, &options) == -1) 
                 {
@@ -611,11 +680,11 @@ class SerialPort
                 }
                 cfsetispeed(&options, B0); // same as output baud rate
                 cfsetospeed(&options, B9600);
-                makeRaw(&options); // disable echo and special characters
+                makeRaw(options); // disable echo and special characters
                 tcsetattr(handle, TCSANOW, &options);
             }
 
-            void makeRaw (termios *options)
+            void makeRaw (ref termios options)
             {
                 options.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | 
                                      INLCR | IGNCR | ICRNL | IXON);
@@ -677,5 +746,10 @@ class SerialPort
             int handle = -1;
         version(Windows)
             HANDLE handle = null;
+            
+        Duration readTimeoutMult;
+        Duration readTimeoutConst;
+        Duration writeTimeoutMutl;
+        Duration writeTimeoutConst;
     }   
 }

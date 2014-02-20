@@ -4,22 +4,54 @@ version(unittest)
 {
     import serial.device;
     import std.stdio;
-
-    void main()
+    import std.getopt;
+    import std.math;
+    import std.process;
+    import core.time;
+    import core.thread;
+    
+    void main(string[] args)
     {
         auto ports = SerialPort.ports;
         writeln("You have ", ports.length, " available com ports: ", ports);
 
-        if(ports.length < 2)
+        string portName1;
+        string portName2;
+        getopt(args, 
+        	"port1", &portName1,
+        	"port2", &portName2);
+        
+        version(linux)
         {
-            writeln("To run tests you should have two serial ports connected to each other.");
-            writeln("On Windows you can use com0com emulator.");
-            writeln("On Posix you can create two hard links to files.");
-            return;
+            Pid sockatPid;
+            if(portName1 == "" || portName2 == "")
+            {
+                if(portName1 == "" || portName2 == "")
+                {
+        	        sockatPid = spawnShell("socat PTY,link=ttyS1 PTY,link=ttyS2");
+                }
+                portName1 = "ttyS1";
+                portName2 = "ttyS2";
+            }
+            scope(exit) kill(sockatPid);
+            Thread.sleep(dur!"msecs"(500));
+        } else
+        {
+            if(portName1 == "" || portName2 == "")
+            {
+                writeln("Please specify testing ports as --port1=<port name> --port2=<port name>");
+                return;
+            }
         }
-
-        auto com1 = new SerialPort(ports[0]);
-        auto com2 = new SerialPort(ports[1]);
+        
+        auto com1 = new SerialPort(portName1, dur!"seconds"(1), dur!"seconds"(1));
+        auto com2 = new SerialPort(portName2, dur!"seconds"(1), dur!"seconds"(1));
+        scope(exit)
+        {
+            com1.close();
+            com2.close();
+        }
+        
         writeln("Testing first port available baud rates:");
         writeln(com1.getBaudRates);
 
@@ -35,5 +67,19 @@ version(unittest)
         string recievedString = cast(string)(buff[0..readed]).idup;
         assert(recievedString == hello, "Recieved string: "~recievedString);
         writeln(recievedString);
+        
+        writeln("Testing read timeout:");
+        bool failed = false;
+        auto t = TickDuration.currSystemTick;
+        try 
+        {
+            readed = com2.read(buff);
+        }
+        catch(TimeoutException e) 
+        {
+            assert(approxEqual(t.msecs, TickDuration.currSystemTick.msecs));
+            failed = true;
+        } 
+        assert(failed);
     }
 }
