@@ -5,8 +5,10 @@ Windows and GNU/Linux tested only.
 
 <h2>Features</h2>
 <ul>
-<li>Serial port enumerating;</li>
+<li>Serial port enumerating</li>
+<li>Synchronized blocking IO</li>
 <li>Checking available baud rates</li>
+<li>Timeout handling</li>
 </ul>
 
 <h2>Installing</h2>
@@ -14,7 +16,7 @@ Windows and GNU/Linux tested only.
 With dub, add this to package.json:
 ---------
 "dependencies": {
-    "serial-port" : "~master"
+    "serial-port" : "1.0.0"
 }
 ---------
 
@@ -26,6 +28,6 @@ dub build --build=unittest --config=unittest
 
 <h2>TODO</h2>
 <ul>
-<li>aschynchronous i/o;</li>
+<li>aschynchronous IO;</li>
 <li>more tweaks for com ports;</li>
 </ul>
