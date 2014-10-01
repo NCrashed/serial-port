@@ -123,6 +123,29 @@ class ParityUnsupportedException : Exception
    }
 }
 
+enum DataBits {
+   data5,
+   data6,
+   data7,
+   data8
+}
+
+class DataBitsUnsupportedException : Exception
+{
+   DataBits dataBits;
+
+   this(DataBits d)
+   {
+      dataBits = d;
+      super(text("DataBits ", d, " is unsupported!"));
+   }
+}
+enum StopBits {
+   one, 
+   onePointFive,
+   two
+}
+
 /**
  *   Thrown when setting up new serial port parameters has failed.
  */
@@ -425,7 +448,7 @@ class SerialPort
    }
 
    /**
-    *   Set the parity rate for this serial port.
+    *  Set the parity-checking protocol.
     */
    SerialPort parity(Parity parity) @property
    {
@@ -435,7 +458,7 @@ class SerialPort
       {
          termios options;
          tcgetattr(handle, &options);
-         switch (parity) {
+         final switch (parity) {
             case Parity.none:
                options.c_cflag &= ~PARENB;
                break;
@@ -446,8 +469,6 @@ class SerialPort
                options.c_cflag &= ~PARODD;
                options.c_cflag |= PARENB;
                break;
-            default:
-               throw new ParityUnsupportedException(parity);
          }
          tcsetattr(handle, TCSANOW, &options);
       }
@@ -455,7 +476,7 @@ class SerialPort
       {
          DCB config;
          GetCommState(handle, &config);
-         switch (parity) {
+         final switch (parity) {
             case Parity.none:
                config.Parity = NOPARITY;
                break;
@@ -465,25 +486,21 @@ class SerialPort
             case Parity.even:
                config.Parity = EVENPARITY;
                break;
-            default:
-               throw new ParityUnsupportedException(parity);
          }
 
          if(!SetCommState(handle, &config))
          {
-            throw new SpeedUnsupportedException(speed);
+            throw new ParityUnsupportedException(parity);
          }
       }
 
       return this;
    }
 
-version(none) {
    /**
-    *   Returns current port speed. Can return BR_UNKNONW baud rate
-    *   if speed was changed not by speed property or wreid errors are occured.
+    *  Set the number of stop bits 
     */
-   Parity parity() @property
+   SerialPort stopBits(StopBits stop) @property
    {
       if (closed) throw new DeviceClosedException();
 
@@ -491,17 +508,123 @@ version(none) {
       {
          termios options;
          tcgetattr(handle, &options);
-         speed_t baud = cfgetospeed(&options);
-         return getBaudSpeed(cast(uint)baud);
+         final switch (stop) {
+            case StopBits.one:
+               break;
+            case StopBits.onePointFive:
+               break;
+            case StopBits.two:
+               options.c_cflag |= CSTOPB;
+               break;
+         }
+         tcsetattr(handle, TCSANOW, &options);
       }
       version(Windows)
       {
          DCB config;
          GetCommState(handle, &config);
-         return getBaudSpeed(cast(uint)config.BaudRate);
+         final switch (stop) {
+            case StopBits.one:
+               config.StopBits = ONESTOPBIT;
+               break;
+            case StopBits.onePointFive:
+               config.StopBits = ONESTOPBIT;
+               break;
+            case StopBits.two:
+               config.StopBits = TWOSTOPBITS;
+               break;
+         }
+
+         SetCommState(handle, &config);
+         // FIX: 
+         //if(!SetCommState(handle, &config))
+         //{
+            //throw new ParityUnsupportedException(parity);
+         //}
+      }
+      return this;
+   }
+
+   /**
+    * Sets the standard length of data bits per byte
+    */
+   SerialPort dataBits(DataBits data) @property
+   {
+      if (closed) throw new DeviceClosedException();
+
+      version(Posix)
+      {
+         termios options;
+         tcgetattr(handle, &options);
+         final switch (data) {
+            case DataBits.data5:
+               options.c_cflag |= CS5;
+               break;
+            case DataBits.data6:
+               options.c_cflag |= CS6;
+               break;
+            case DataBits.data7:
+               options.c_cflag |= CS7;
+               break;
+            case DataBits.data8:
+               options.c_cflag |= CS8;
+               break;
+         }
+         tcsetattr(handle, TCSANOW, &options);
+      }
+
+      version(Windows)
+      {
+         DCB config;
+         GetCommState(handle, &config);
+         final switch (data) {
+            case DataBits.data5:
+               config.ByteSize = 5;
+               break;
+            case DataBits.data6:
+               config.ByteSize = 6;
+               break;
+            case DataBits.data7:
+               config.ByteSize = 7;
+               break;
+            case DataBits.data8:
+               config.ByteSize = 8;
+               break;
+         }
+
+         if(!SetCommState(handle, &config))
+         {
+            throw new DataBitsUnsupportedException(data);
+         }
+      }
+
+      return this;
+   }
+
+
+   version(none) {
+      /**
+       *   Returns current parity speed. 
+       */
+      Parity parity() @property
+      {
+         if (closed) throw new DeviceClosedException();
+
+         version(Posix)
+         {
+            termios options;
+            tcgetattr(handle, &options);
+            speed_t baud = cfgetospeed(&options);
+            return getBaudSpeed(cast(uint)baud);
+         }
+         version(Windows)
+         {
+            DCB config;
+            GetCommState(handle, &config);
+            return getBaudSpeed(cast(uint)config.BaudRate);
+         }
       }
    }
-}
 
 
    /**
@@ -701,9 +824,12 @@ version(none) {
          FD_ZERO(&selectSet);
          FD_SET(handle, &selectSet);
 
+         Duration totalReadTimeout = arr.length * readTimeoutMult + readTimeoutConst;
+
          timeval timeout;
-         timeout.tv_sec = cast(int)(arr.length * readTimeoutMult.total!"seconds" + readTimeoutConst.total!"seconds");
-         timeout.tv_usec = cast(int)(arr.length * readTimeoutMult.fracSec.msecs + readTimeoutConst.fracSec.msecs);
+         timeout.tv_sec = cast(int)(totalReadTimeout.total!"seconds");
+         enum US_PER_MS = 1000;
+         timeout.tv_usec = cast(int)(totalReadTimeout.split().msecs * US_PER_MS);
 
          auto rv = select(handle + 1, &selectSet, null, null, &timeout);
          if(rv == -1)
