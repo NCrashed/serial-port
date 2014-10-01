@@ -1,10 +1,11 @@
 serial-port
 ===========
 
-Crossplatform library for operating with serial ports in D programming language. [Documentation](http://ncrashed.github.io/serial-port/index.html).
+Crossplatform library for operating with serial ports in D programming language. 
+[Documentation](http://ncrashed.github.io/serial-port/index.html).
 
-Compilation
-===========
+## Compilation
+
 With [dub](http://code.dlang.org/download):
 ```
 dub build
@@ -32,11 +33,14 @@ make test
 ./serial-port
 ```
 
-You should have two serial ports linked to each other (com0com on Windows, socat in linux). For instance, writing to 
-'COM1' and reading from 'COM2'. On posix you can use socat to create serial port pipe:
+You should have two serial ports linked to each other (com0com on Windows, socat in linux). For instance, writing to 'COM1' and reading from 'COM2'. 
+On posix you can use [socat](http://linux.die.net/man/1/socat) to create serial port pipe:
+
 ```
-socat PTY,link=ttyS1 PTY,link=ttyS2
+socat /dev/ttyS0,raw,echo=0,crnl /dev/ttyS1,raw,echo=0,crnl
 ```
-# References
+
+## References
 * [Termios man page](http://linux.die.net/man/3/termios)
 * [librs232] (https://github.com/ynezz/librs232)
+* [Some useful socat commands](http://technostuff.blogspot.it/2008/10/some-useful-socat-commands.html)
