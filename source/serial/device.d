@@ -423,7 +423,7 @@ class SerialPort
             
             termios options;
             tcgetattr(handle, &options);
-         cfsetispeed(&options, baud);
+            cfsetispeed(&options, baud);
             cfsetospeed(&options, baud);
 
             tcsetattr(handle, TCSANOW, &options);
@@ -840,21 +840,21 @@ class SerialPort
             FD_ZERO(&selectSet);
             FD_SET(handle, &selectSet);
             
-         Duration totalReadTimeout = arr.length * readTimeoutMult + readTimeoutConst;
+            Duration totalReadTimeout = arr.length * readTimeoutMult + readTimeoutConst;
 
             timeval timeout;
-         timeout.tv_sec = cast(int)(totalReadTimeout.total!"seconds");
-         enum US_PER_MS = 1000;
-         timeout.tv_usec = cast(int)(totalReadTimeout.split().msecs * US_PER_MS);
+            timeout.tv_sec = cast(int)(totalReadTimeout.total!"seconds");
+            enum US_PER_MS = 1000;
+            timeout.tv_usec = cast(int)(totalReadTimeout.split().msecs * US_PER_MS);
             
-        	auto rv = select(handle + 1, &selectSet, null, null, &timeout);
-        	if(rv == -1)
-        	{
-        		throw new DeviceReadException(port);
-        	} else if(rv == 0)
-        	{
-        		throw new TimeoutException(port, 0);
-        	}
+            auto rv = select(handle + 1, &selectSet, null, null, &timeout);
+            if(rv == -1)
+            {
+               throw new DeviceReadException(port);
+            } else if(rv == 0)
+            {
+               throw new TimeoutException(port, 0);
+            }
         	
             ssize_t result = posixRead(handle, arr.ptr, arr.length);
             if(result < 0) 
