@@ -54,15 +54,13 @@ import core.time;
 version(Posix)
 {
     import core.sys.posix.unistd;
-    import core.sys.posix.termios;
+    import core.sys.linux.termios;
     import core.sys.posix.fcntl;
     import core.sys.posix.sys.select;
     import std.algorithm;
     import std.file;
 
-    enum B57600 = 57_600;
-    enum B115200 = 115_200;
-    
+    enum B57600 = 0x1001; // 0010001
     alias core.sys.posix.unistd.read posixRead;
     alias core.sys.posix.unistd.write posixWrite;
     alias core.sys.posix.unistd.close posixClose;
@@ -104,6 +102,63 @@ class SpeedUnsupportedException : Exception
     {
         speed = spd;
         super(text("Speed ", spd, " is unsupported!"));
+   }
+}
+
+// The members of enums should be camelCased
+// http://dlang.org/dstyle.html
+enum Parity 
+{
+   none,
+   odd,
+   even
+}
+
+class ParityUnsupportedException : Exception
+{
+   Parity parity;
+
+   this(Parity p)
+   {
+      parity = p;
+      super(text("Parity ", p, " is unsupported!"));
+   }
+}
+
+enum DataBits 
+{
+   data5,
+   data6,
+   data7,
+   data8
+}
+
+class DataBitsUnsupportedException : Exception
+{
+   DataBits dataBits;
+
+   this(DataBits d)
+   {
+      dataBits = d;
+      super(text("DataBits ", d, " is unsupported!"));
+   }
+}
+
+enum StopBits 
+{
+   one, 
+   onePointFive,
+   two
+}
+
+class StopBitsUnsupportedException : Exception
+{
+   StopBits stopBits;
+
+   this(StopBits d)
+   {
+      stopBits = d;
+      super(text("StopBits ", d, " is unsupported!"));
     }
 }
 
@@ -368,7 +423,9 @@ class SerialPort
             
             termios options;
             tcgetattr(handle, &options);
+            cfsetispeed(&options, baud);
             cfsetospeed(&options, baud);
+
             tcsetattr(handle, TCSANOW, &options);
         }
         version(Windows)
@@ -409,6 +466,184 @@ class SerialPort
     }
 
     /**
+    *  Set the parity-checking protocol.
+    */
+   SerialPort parity(Parity parity) @property
+   {
+      if (closed) throw new DeviceClosedException();
+
+      version(Posix)
+      {
+         termios options;
+         tcgetattr(handle, &options);
+         final switch (parity) {
+            case Parity.none:
+               options.c_cflag &= ~PARENB;
+               break;
+            case Parity.odd:
+               options.c_cflag |= (PARENB | PARODD);
+               break;
+            case Parity.even:
+               options.c_cflag &= ~PARODD;
+               options.c_cflag |= PARENB;
+               break;
+         }
+         tcsetattr(handle, TCSANOW, &options);
+      }
+      version(Windows)
+      {
+         DCB config;
+         GetCommState(handle, &config);
+         final switch (parity) {
+            case Parity.none:
+               config.Parity = NOPARITY;
+               break;
+            case Parity.odd:
+               config.Parity = ODDPARITY;
+               break;
+            case Parity.even:
+               config.Parity = EVENPARITY;
+               break;
+         }
+
+         if(!SetCommState(handle, &config))
+         {
+            throw new ParityUnsupportedException(parity);
+         }
+      }
+
+      return this;
+   }
+
+   /**
+    *  Set the number of stop bits 
+    */
+   SerialPort stopBits(StopBits stop) @property
+   {
+      if (closed) throw new DeviceClosedException();
+
+      version(Posix)
+      {
+         termios options;
+         tcgetattr(handle, &options);
+         final switch (stop) {
+            case StopBits.one:
+               break;
+            case StopBits.onePointFive:
+            case StopBits.two:
+               options.c_cflag |= CSTOPB;
+               break;
+         }
+         tcsetattr(handle, TCSANOW, &options);
+      }
+      version(Windows)
+      {
+         DCB config;
+         GetCommState(handle, &config);
+         final switch (stop) {
+            case StopBits.one:
+               config.StopBits = ONESTOPBIT;
+               break;
+            case StopBits.onePointFive:
+               config.StopBits = ONESTOPBIT;
+               break;
+            case StopBits.two:
+               config.StopBits = TWOSTOPBITS;
+               break;
+         }
+
+         if(!SetCommState(handle, &config))
+         {
+            throw new StopBitsUnsupportedException(stop);
+         }
+      }
+      return this;
+   }
+
+   /**
+    * Sets the standard length of data bits per byte
+    */
+   SerialPort dataBits(DataBits data) @property
+   {
+      if (closed) throw new DeviceClosedException();
+
+      version(Posix)
+      {
+         termios options;
+         tcgetattr(handle, &options);
+
+         options.c_cflag &= ~CSIZE;
+         final switch (data) {
+            case DataBits.data5:
+               options.c_cflag |= CS5;
+               break;
+            case DataBits.data6:
+               options.c_cflag |= CS6;
+               break;
+            case DataBits.data7:
+               options.c_cflag |= CS7;
+               break;
+            case DataBits.data8:
+               options.c_cflag |= CS8;
+               break;
+         }
+         tcsetattr(handle, TCSANOW, &options);
+      }
+
+      version(Windows)
+      {
+         DCB config;
+         GetCommState(handle, &config);
+         final switch (data) {
+            case DataBits.data5:
+               config.ByteSize = 5;
+               break;
+            case DataBits.data6:
+               config.ByteSize = 6;
+               break;
+            case DataBits.data7:
+               config.ByteSize = 7;
+               break;
+            case DataBits.data8:
+               config.ByteSize = 8;
+               break;
+         }
+
+         if(!SetCommState(handle, &config))
+         {
+            throw new DataBitsUnsupportedException(data);
+         }
+      }
+      return this;
+   }
+
+
+   version(none) {
+      /** TODO
+       *   Returns current parity . 
+       */
+      Parity parity() @property
+      {
+         if (closed) throw new DeviceClosedException();
+
+         version(Posix)
+         {
+            termios options;
+            tcgetattr(handle, &options);
+            speed_t baud = cfgetospeed(&options);
+            return getBaudSpeed(cast(uint)baud);
+         }
+         version(Windows)
+         {
+            DCB config;
+            GetCommState(handle, &config);
+            return getBaudSpeed(cast(uint)config.BaudRate);
+         }
+      }
+   }
+
+
+   /**
     *   Iterates over all bauds rate and tries to setup port with it.
     *   Returns: array of successfully setuped baud rates for current 
     *   serial port.
@@ -605,18 +840,21 @@ class SerialPort
             FD_ZERO(&selectSet);
             FD_SET(handle, &selectSet);
             
+            Duration totalReadTimeout = arr.length * readTimeoutMult + readTimeoutConst;
+
             timeval timeout;
-            timeout.tv_sec = cast(int)(arr.length*readTimeoutMult.get!"seconds" + readTimeoutConst.get!"seconds");
-            timeout.tv_usec = cast(int)(arr.length*readTimeoutMult.fracSec.msecs + readTimeoutConst.fracSec.msecs);
+            timeout.tv_sec = cast(int)(totalReadTimeout.total!"seconds");
+            enum US_PER_MS = 1000;
+            timeout.tv_usec = cast(int)(totalReadTimeout.split().msecs * US_PER_MS);
             
-        	auto rv = select(handle + 1, &selectSet, null, null, &timeout);
-        	if(rv == -1)
-        	{
-        		throw new DeviceReadException(port);
-        	} else if(rv == 0)
-        	{
-        		throw new TimeoutException(port, 0);
-        	}
+            auto rv = select(handle + 1, &selectSet, null, null, &timeout);
+            if(rv == -1)
+            {
+               throw new DeviceReadException(port);
+            } else if(rv == 0)
+            {
+               throw new TimeoutException(port, 0);
+            }
         	
             ssize_t result = posixRead(handle, arr.ptr, arr.length);
             if(result < 0) 
