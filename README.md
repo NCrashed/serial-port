@@ -43,4 +43,8 @@ socat /dev/ttyS0,raw,echo=0,crnl /dev/ttyS1,raw,echo=0,crnl
 ## References
 * [Termios man page](http://linux.die.net/man/3/termios)
 * [librs232] (https://github.com/ynezz/librs232)
+* [D termios header file](https://github.com/D-Programming-Language/druntime/blob/v2.065.0/src/core/sys/linux/termios.d)
+* [Termbits header file](https://github.com/torvalds/linux/blob/9a3c4145af32125c5ee39c0272662b47307a8323/include/uapi/asm-generic/termbits.h)
 * [Some useful socat commands](http://technostuff.blogspot.it/2008/10/some-useful-socat-commands.html)
+
+
