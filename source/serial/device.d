@@ -54,15 +54,13 @@ import core.time;
 version(Posix)
 {
    import core.sys.posix.unistd;
-   import core.sys.posix.termios;
+   import core.sys.linux.termios;
    import core.sys.posix.fcntl;
    import core.sys.posix.sys.select;
+
    import std.algorithm;
    import std.file;
-
-   enum B57600 = 57_600;
-   enum B115200 = 115_200;
-
+   enum B57600 = 0x1001; // 0010001
    alias core.sys.posix.unistd.read posixRead;
    alias core.sys.posix.unistd.write posixWrite;
    alias core.sys.posix.unistd.close posixClose;
@@ -91,6 +89,7 @@ enum BaudRate : uint
    BR_115200 = 115_200,
    BR_UNKNOWN  // refers to unknown baud rate
 }
+
 /**
  *   Thrown when trying to setup serial port with
  *   unsupported baud rate by current OS.
@@ -105,13 +104,16 @@ class SpeedUnsupportedException : Exception
       super(text("Speed ", spd, " is unsupported!"));
    }
 }
+
 // The members of enums should be camelCased
-//http://dlang.org/dstyle.html
-enum Parity {
+// http://dlang.org/dstyle.html
+enum Parity 
+{
    none,
    odd,
    even
 }
+
 class ParityUnsupportedException : Exception
 {
    Parity parity;
@@ -123,7 +125,8 @@ class ParityUnsupportedException : Exception
    }
 }
 
-enum DataBits {
+enum DataBits 
+{
    data5,
    data6,
    data7,
@@ -140,10 +143,23 @@ class DataBitsUnsupportedException : Exception
       super(text("DataBits ", d, " is unsupported!"));
    }
 }
-enum StopBits {
+
+enum StopBits 
+{
    one, 
    onePointFive,
    two
+}
+
+class StopBitsUnsupportedException : Exception
+{
+   StopBits stopBits;
+
+   this(StopBits d)
+   {
+      stopBits = d;
+      super(text("StopBits ", d, " is unsupported!"));
+   }
 }
 
 /**
@@ -407,7 +423,9 @@ class SerialPort
 
          termios options;
          tcgetattr(handle, &options);
+         cfsetispeed(&options, baud);
          cfsetospeed(&options, baud);
+
          tcsetattr(handle, TCSANOW, &options);
       }
       version(Windows)
@@ -512,7 +530,6 @@ class SerialPort
             case StopBits.one:
                break;
             case StopBits.onePointFive:
-               break;
             case StopBits.two:
                options.c_cflag |= CSTOPB;
                break;
@@ -535,12 +552,10 @@ class SerialPort
                break;
          }
 
-         SetCommState(handle, &config);
-         // FIX: 
-         //if(!SetCommState(handle, &config))
-         //{
-            //throw new ParityUnsupportedException(parity);
-         //}
+         if(!SetCommState(handle, &config))
+         {
+            throw new StopBitsUnsupportedException(stop);
+         }
       }
       return this;
    }
@@ -556,6 +571,8 @@ class SerialPort
       {
          termios options;
          tcgetattr(handle, &options);
+
+         options.c_cflag &= ~CSIZE;
          final switch (data) {
             case DataBits.data5:
                options.c_cflag |= CS5;
@@ -597,14 +614,13 @@ class SerialPort
             throw new DataBitsUnsupportedException(data);
          }
       }
-
       return this;
    }
 
 
    version(none) {
-      /**
-       *   Returns current parity speed. 
+      /** TODO
+       *   Returns current parity . 
        */
       Parity parity() @property
       {
