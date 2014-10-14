@@ -538,9 +538,12 @@ class SerialPort
       {
          DCB config;
          GetCommState(handle, &config);
-         // FIX: 
-         //return getBaudSpeed(cast(uint)config.BaudRate);
-         return Parity.even;
+         switch (config.Parity) {
+            default:
+            case NOPARITY: return Parity.none;
+            case ODDPARITY: return Parity.odd;
+            case EVENPARITY: return Parity.even;
+         }
       }
    }
 
@@ -609,9 +612,11 @@ class SerialPort
       {
          DCB config;
          GetCommState(handle, &config);
-         // FIX: 
-         //return getBaudSpeed(cast(uint)config.BaudRate);
-         return StopBits.one;
+         switch (config.StopBits) 
+         {
+            case ONESTOPBIT: return StopBits.one;
+            default: return StopBits.two;
+         }
       }
    }
 
@@ -673,39 +678,44 @@ class SerialPort
    }
 
    DataBits dataBits() @property
-      {
-         if (closed) throw new DeviceClosedException();
+   {
+      if (closed) throw new DeviceClosedException();
 
-         version(Posix)
+      version(Posix)
+      {
+         termios options;
+         tcgetattr(handle, &options);
+         if ((options.c_cflag & CS8) == CS8) 
          {
-            termios options;
-            tcgetattr(handle, &options);
-            if ((options.c_cflag & CS8) == CS8) {
-               return DataBits.data8;
-            } 
-            else if ((options.c_cflag & CS7) == CS7) 
-            {
-               return DataBits.data7;
-            } 
-            else if ((options.c_cflag & CS6) == CS6) 
-            {
-               return DataBits.data6;
-            } 
-            else 
-            {
-               return DataBits.data5;
-            }
+            return DataBits.data8;
+         } 
+         else if ((options.c_cflag & CS7) == CS7) 
+         {
+            return DataBits.data7;
+         } 
+         else if ((options.c_cflag & CS6) == CS6) 
+         {
+            return DataBits.data6;
+         } 
+         else 
+         {
+            return DataBits.data5;
          }
-         version(Windows)
+      }
+      version(Windows)
+      {
+         DCB config;
+         GetCommState(handle, &config);
+         switch (config.ByteSize) 
          {
-            DCB config;
-            GetCommState(handle, &config);
-         // FIX: 
-         //return getBaudSpeed(cast(uint)config.BaudRate);
-         return DataBits.data5;
+            case 5: return DataBits.data5;
+            case 6: return DataBits.data6;
+            case 7: return DataBits.data7;
+            default:
+            case 8: return DataBits.data8;
+         }
       }
    }
-
 
    /**
     *   Iterates over all bauds rate and tries to setup port with it.

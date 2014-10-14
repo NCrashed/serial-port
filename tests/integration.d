@@ -8,11 +8,10 @@ import serial.device;
 
 void testWrite() {
    Duration timeout = dur!("msecs")(2000);
-   //version(Windows) {
-      //string port = "COM1";
-   //}
    string port = "/dev/ttyS2";
-   writeln("try connect to ", port);
+   version(Windows) {
+      port = "COM1";
+   }
 
    auto com = new serial.device.SerialPort(port, timeout, timeout);
    scope (exit) com.close;
@@ -32,6 +31,9 @@ void testWrite() {
 
 void testParity() {
    string port = "/dev/ttyS2";
+   version(Windows) {
+      port = "COM1";
+   }
    Duration timeout = dur!("msecs")(2000);
 
    auto com = new serial.device.SerialPort(port, timeout, timeout);
@@ -41,7 +43,7 @@ void testParity() {
    com.dataBits = DataBits.data7;
 
    com.parity = Parity.even;
-   assert(com.parity == Parity.even);
+   //assert(com.parity == Parity.even);
    com.parity.shouldEqual(Parity.even);
 
    com.parity = Parity.odd;
@@ -55,6 +57,9 @@ void testParity() {
 
 void testBits() {
    string port = "/dev/ttyS0";
+   version(Windows) {
+      port = "COM1";
+   }
    Duration timeout = dur!("msecs")(2000);
 
    auto com = new serial.device.SerialPort(port, timeout, timeout);

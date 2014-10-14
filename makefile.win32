@@ -1,14 +1,13 @@
 NAME = serial-port 
 VERSION = 0.1.0
 IS_LIB = true
-
+D_DIR = ../
 ROOT_SOURCE_DIR = source
 SRC = $(ROOT_SOURCE_DIR)/serial/device.d
 
 # -----------
 # libraries
 # -----------
-
 
 # -----------
 # Compiler flag
@@ -22,7 +21,6 @@ DFLAGS += -debug
 #DFLAGS += -w
 ##-wi warnings as messages (compilation will continue)
 DFLAGS += -wi
-DFLAGS += -m64
 
 # -----------
 # Linker flag
@@ -52,7 +50,7 @@ INCLUDES_TEST += $(INCLUDES)
 #LIB_TEST += $(D_DIR)/DMocks-revived/libdmocks-revived.a
 #INCLUDES_TEST += -I$(D_DIR)/DMocks-revived
 
-LIB_TEST += $(D_DIR)/unit-threaded/libunit-threaded.a
+LIB_TEST += $(D_DIR)/unit-threaded/unit-threaded.lib
 INCLUDES_TEST += -I$(D_DIR)/unit-threaded/source
 
 # -----------
@@ -72,7 +70,7 @@ DEFAULT: all
 BIN = bin
 DMD = dmd
 BASE_NAME = $(basename $(NAME))
-NAME_TEST = $(BASE_NAME)-test 
+NAME_TEST = $(BASE_NAME)-test.exe
 DSCAN = $(D_DIR)/Dscanner/bin/dscanner
 .PHONY: all clean clobber test run
 
