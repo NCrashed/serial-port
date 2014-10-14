@@ -15,7 +15,7 @@ with make
 make
 ```
 
-Or, put in your package.json dependencies:
+Or, put in your dub.json dependencies:
 ```
 "dependencies": {
   "serial-port": "~master"
