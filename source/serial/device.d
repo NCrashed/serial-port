@@ -516,6 +516,39 @@ class SerialPort
    }
 
    /**
+    *   Returns current parity . 
+    */
+   Parity parity() @property
+   {
+      if (closed) throw new DeviceClosedException();
+
+      version(Posix)
+      {
+         termios options;
+         tcgetattr(handle, &options);
+         if ((options.c_cflag & PARENB) == 0) {
+            return Parity.none;
+         } else if ((options.c_cflag & PARODD) == PARODD) {
+            return Parity.odd;
+         } else {
+            return Parity.even;
+         }
+      }
+      version(Windows)
+      {
+         DCB config;
+         GetCommState(handle, &config);
+         switch (config.Parity) {
+            default:
+            case NOPARITY: return Parity.none;
+            case ODDPARITY: return Parity.odd;
+            case EVENPARITY: return Parity.even;
+         }
+      }
+   }
+
+
+   /**
     *  Set the number of stop bits 
     */
    SerialPort stopBits(StopBits stop) @property
@@ -528,6 +561,7 @@ class SerialPort
          tcgetattr(handle, &options);
          final switch (stop) {
             case StopBits.one:
+               options.c_cflag &= ~CSTOPB;
                break;
             case StopBits.onePointFive:
             case StopBits.two:
@@ -558,6 +592,32 @@ class SerialPort
          }
       }
       return this;
+   }
+
+   StopBits stopBits() @property
+   {
+      if (closed) throw new DeviceClosedException();
+
+      version(Posix)
+      {
+         termios options;
+         tcgetattr(handle, &options);
+         if ((options.c_cflag & CSTOPB) == CSTOPB) {
+            return StopBits.two;
+         } else {
+            return StopBits.one;
+         }
+      }
+      version(Windows)
+      {
+         DCB config;
+         GetCommState(handle, &config);
+         switch (config.StopBits) 
+         {
+            case ONESTOPBIT: return StopBits.one;
+            default: return StopBits.two;
+         }
+      }
    }
 
    /**
@@ -617,31 +677,45 @@ class SerialPort
       return this;
    }
 
+   DataBits dataBits() @property
+   {
+      if (closed) throw new DeviceClosedException();
 
-   version(none) {
-      /** TODO
-       *   Returns current parity . 
-       */
-      Parity parity() @property
+      version(Posix)
       {
-         if (closed) throw new DeviceClosedException();
-
-         version(Posix)
+         termios options;
+         tcgetattr(handle, &options);
+         if ((options.c_cflag & CS8) == CS8) 
          {
-            termios options;
-            tcgetattr(handle, &options);
-            speed_t baud = cfgetospeed(&options);
-            return getBaudSpeed(cast(uint)baud);
+            return DataBits.data8;
+         } 
+         else if ((options.c_cflag & CS7) == CS7) 
+         {
+            return DataBits.data7;
+         } 
+         else if ((options.c_cflag & CS6) == CS6) 
+         {
+            return DataBits.data6;
+         } 
+         else 
+         {
+            return DataBits.data5;
          }
-         version(Windows)
+      }
+      version(Windows)
+      {
+         DCB config;
+         GetCommState(handle, &config);
+         switch (config.ByteSize) 
          {
-            DCB config;
-            GetCommState(handle, &config);
-            return getBaudSpeed(cast(uint)config.BaudRate);
+            case 5: return DataBits.data5;
+            case 6: return DataBits.data6;
+            case 7: return DataBits.data7;
+            default:
+            case 8: return DataBits.data8;
          }
       }
    }
-
 
    /**
     *   Iterates over all bauds rate and tries to setup port with it.
