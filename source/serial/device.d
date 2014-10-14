@@ -516,6 +516,36 @@ class SerialPort
    }
 
    /**
+    *   Returns current parity . 
+    */
+   Parity parity() @property
+   {
+      if (closed) throw new DeviceClosedException();
+
+      version(Posix)
+      {
+         termios options;
+         tcgetattr(handle, &options);
+         if ((options.c_cflag & PARENB) == 0) {
+            return Parity.none;
+         } else if ((options.c_cflag & PARODD) == PARODD) {
+            return Parity.odd;
+         } else {
+            return Parity.even;
+         }
+      }
+      version(Windows)
+      {
+         DCB config;
+         GetCommState(handle, &config);
+         // FIX: 
+         //return getBaudSpeed(cast(uint)config.BaudRate);
+         return Parity.even;
+      }
+   }
+
+
+   /**
     *  Set the number of stop bits 
     */
    SerialPort stopBits(StopBits stop) @property
@@ -528,6 +558,7 @@ class SerialPort
          tcgetattr(handle, &options);
          final switch (stop) {
             case StopBits.one:
+               options.c_cflag &= ~CSTOPB;
                break;
             case StopBits.onePointFive:
             case StopBits.two:
@@ -558,6 +589,30 @@ class SerialPort
          }
       }
       return this;
+   }
+
+   StopBits stopBits() @property
+   {
+      if (closed) throw new DeviceClosedException();
+
+      version(Posix)
+      {
+         termios options;
+         tcgetattr(handle, &options);
+         if ((options.c_cflag & CSTOPB) == CSTOPB) {
+            return StopBits.two;
+         } else {
+            return StopBits.one;
+         }
+      }
+      version(Windows)
+      {
+         DCB config;
+         GetCommState(handle, &config);
+         // FIX: 
+         //return getBaudSpeed(cast(uint)config.BaudRate);
+         return StopBits.one;
+      }
    }
 
    /**
@@ -617,12 +672,7 @@ class SerialPort
       return this;
    }
 
-
-   version(none) {
-      /** TODO
-       *   Returns current parity . 
-       */
-      Parity parity() @property
+   DataBits dataBits() @property
       {
          if (closed) throw new DeviceClosedException();
 
@@ -630,15 +680,29 @@ class SerialPort
          {
             termios options;
             tcgetattr(handle, &options);
-            speed_t baud = cfgetospeed(&options);
-            return getBaudSpeed(cast(uint)baud);
+            if ((options.c_cflag & CS8) == CS8) {
+               return DataBits.data8;
+            } 
+            else if ((options.c_cflag & CS7) == CS7) 
+            {
+               return DataBits.data7;
+            } 
+            else if ((options.c_cflag & CS6) == CS6) 
+            {
+               return DataBits.data6;
+            } 
+            else 
+            {
+               return DataBits.data5;
+            }
          }
          version(Windows)
          {
             DCB config;
             GetCommState(handle, &config);
-            return getBaudSpeed(cast(uint)config.BaudRate);
-         }
+         // FIX: 
+         //return getBaudSpeed(cast(uint)config.BaudRate);
+         return DataBits.data5;
       }
    }
 
