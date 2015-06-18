@@ -54,13 +54,32 @@ import core.time;
 version(Posix)
 {
     import core.sys.posix.unistd;
-    import core.sys.linux.termios;
+    version(Linux) {
+      import core.sys.linux.termios;
+      // unneeded, fixed in D-Programming-Language/druntime@5852cc4
+      enum B57600 = 0x1001; // 0010001
+    }
+    else version(OSX)
+    {
+      import core.sys.posix.termios;
+      enum B7200   = 7200;
+      enum B14400  = 14400;
+      enum B28800  = 28800;
+      enum B57600  = 57600;
+      enum B76800  = 76800;
+      enum B115200 = 115200;
+      enum B230400 = 230400;
+    }
+    else
+    {
+      import core.sys.posix.termios;
+    }
+
     import core.sys.posix.fcntl;
     import core.sys.posix.sys.select;
     import std.algorithm;
     import std.file;
 
-    enum B57600 = 0x1001; // 0010001
     alias core.sys.posix.unistd.read posixRead;
     alias core.sys.posix.unistd.write posixWrite;
     alias core.sys.posix.unistd.close posixClose;
