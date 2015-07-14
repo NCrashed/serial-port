@@ -54,10 +54,8 @@ import core.time;
 version(Posix)
 {
     import core.sys.posix.unistd;
-    version(Linux) {
+    version(linux) {
       import core.sys.linux.termios;
-      // unneeded, fixed in D-Programming-Language/druntime@5852cc4
-      enum B57600 = 0x1001; // 0010001
     }
     else version(OSX)
     {
