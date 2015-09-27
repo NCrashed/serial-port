@@ -93,10 +93,17 @@ version(Windows)
 */
 enum BaudRate : uint
 {
+    BR_0      = 0,
+    BR_50     = 50,
+    BR_75     = 75,
     BR_110    = 110,
+    BR_134    = 134,
+    BR_150    = 150,
+    BR_200    = 200,
     BR_300    = 300,
     BR_600    = 600,
     BR_1200   = 1200,
+    BR_1800   = 1800,
     BR_2400   = 2400,
     BR_4800   = 4800,
     BR_9600   = 9600,
@@ -104,6 +111,7 @@ enum BaudRate : uint
     BR_38400  = 38_400,
     BR_57600  = 57_600,
     BR_115200 = 115_200,
+    BR_230400 = 230_400,
     BR_UNKNOWN  // refers to unknown baud rate
 }
 
@@ -1003,16 +1011,24 @@ class SerialPort
             shared static this()
             {
                 posixBRTable = [
+                    BaudRate.BR_0 : B0,
+                    BaudRate.BR_50 : B50,
+                    BaudRate.BR_75 : B75,
                     BaudRate.BR_110 : B110,
+                    BaudRate.BR_134 : B134,
+                    BaudRate.BR_150 : B150,
+                    BaudRate.BR_200 : B200,
                     BaudRate.BR_300 : B300,
                     BaudRate.BR_600 : B600,
                     BaudRate.BR_1200 : B1200,
+                    BaudRate.BR_1800 : B1800,
                     BaudRate.BR_2400 : B2400,
                     BaudRate.BR_4800 : B4800,
                     BaudRate.BR_9600 : B9600,
                     BaudRate.BR_38400 : B38400,
                     BaudRate.BR_57600 : B57600,
-                    BaudRate.BR_115200 : B115200
+                    BaudRate.BR_115200 : B115200,
+                    BaudRate.BR_230400 : B230400
                 ];
             }
 
@@ -1066,31 +1082,47 @@ class SerialPort
             version(Windows)
             {
                 baudRatetoUint = [
+                    0 : BaudRate.BR_0,
+                    50 : BaudRate.BR_50,
+                    75 : BaudRate.BR_75,
                     110 : BaudRate.BR_110,
+                    134 : BaudRate.BR_134,
+                    150 : BaudRate.BR_150,
+                    200 : BaudRate.BR_200, 
                     300 : BaudRate.BR_300,
                     600 : BaudRate.BR_600,
                     1200 : BaudRate.BR_1200,
+                    1800 : BaudRate.BR_1800,
                     2400 : BaudRate.BR_2400,
                     4800 : BaudRate.BR_4800,
                     9600 : BaudRate.BR_9600,
                     38_400 : BaudRate.BR_38400,
                     57_600 : BaudRate.BR_57600,
                     115_200 : BaudRate.BR_115200,
+                    230_400 : BaudRate.BR_230400
                 ];
             }
             version(linux)
             {
                 baudRatetoUint = [
+                    B0 : BaudRate.BR_0,
+                    B50 : BaudRate.BR_50,
+                    B75 : BaudRate.BR_75,
                     B110 : BaudRate.BR_110,
+                    B134 : BaudRate.BR_134,
+                    B150 : BaudRate.BR_150,
+                    B200 : BaudRate.BR_200,
                     B300 : BaudRate.BR_300,
                     B600 : BaudRate.BR_600,
                     B1200 : BaudRate.BR_1200,
+                    B1800 : BaudRate.BR_1800,
                     B2400 : BaudRate.BR_2400,
                     B4800 : BaudRate.BR_4800,
                     B9600 : BaudRate.BR_9600,
                     B38400 : BaudRate.BR_38400,
                     B57600 : BaudRate.BR_57600,
                     B115200 : BaudRate.BR_115200,
+                    B230400 : BaudRate.BR_230400
                 ];
             }
         }
