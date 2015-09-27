@@ -56,6 +56,9 @@ version(Posix)
     import core.sys.posix.unistd;
     version(linux) {
       import core.sys.linux.termios;
+      version(GNU) {
+        enum B57600  = 57600;
+      }
     }
     else version(OSX)
     {
