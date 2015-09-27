@@ -234,7 +234,7 @@ class TimeoutException : Exception
 	@safe pure nothrow this(string port, size_t size, string file = __FILE__, size_t line = __LINE__)
 	{
         this.size = size;
-		super("Timeout is expires for serial port '"~port~"'", file, line);
+		super("Timeout is expired for serial port '"~port~"'", file, line);
 	}
 
     size_t size;
