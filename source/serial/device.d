@@ -995,7 +995,6 @@ class SerialPort
 		        timeouts.ReadTotalTimeoutConstant    = cast(DWORD)readTimeoutConst.total!"msecs";
 		        timeouts.WriteTotalTimeoutMultiplier = cast(DWORD)writeTimeoutMult.total!"msecs";
 		        timeouts.WriteTotalTimeoutConstant   = cast(DWORD)writeTimeoutConst.total!"msecs";
-		        import std.stdio; writeln(timeouts);
 		        if (SetCommTimeouts(handle, &timeouts) == 0) 
 		        {
 		        	throw new InvalidParametersException(port);
