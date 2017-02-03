@@ -18,7 +18,7 @@ make
 Or, put in your dub.json dependencies:
 ```
 "dependencies": {
-  "serial-port": "~master"
+  "serial-port": "~>1.2"
 },
 ```
 
